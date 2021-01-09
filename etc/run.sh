@@ -1,0 +1,2 @@
+#!/bin/bash
+/usr/local/Cellar/hadoop/3.3.0/bin/hadoop jar /Users/worabodeedenvittaya/Desktop/Lab2/COMP38211-CW_Exercise2/build/jar/COMP38211-Lab2.jar -D mapreduce.framework.name=local -D mapreduce.jobtracker.address=local -D fs.defaultFS=file:/// -D mapreduce.cluster.local.dir=/tmp/mapred/local -D mapreduce.cluster.temp.dir=/tmp/mapred/temp -D mapreduce.jobtracker.staging.root.dir=/tmp/mapred/staging -D mapreduce.jobtracker.system.dir=/tmp/mapred/system $1 $2 $3 $4 $5 $6 $7 $8 $9
