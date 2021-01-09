@@ -19,8 +19,11 @@ package uk.ac.man.cs.comp38211.exercise;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.commons.cli.CommandLine;
@@ -119,28 +122,71 @@ public class RDFInvertedIndex extends Configured implements Tool
         }
     }
 
+    private static final HashMap<String, Integer> uris = new HashMap<String, Integer>();
+
     public static class Reduce extends Reducer<PairOfStrings, Text, PairOfStrings, ArrayListWritable<Text>>
     {
-       
+        private String compress(String uri) throws URISyntaxException {
+            URI compressed = new URI(uri);
+            String domain = "http://" + compressed.getHost();
+
+            uris.put(domain, uris.size() + 1);
+
+            return uri.replaceAll(domain, uris.get(domain).toString());
+        }
+
+        private void outputPOS(PairOfStrings predobj,
+                               ArrayListWritable<Text> subjects,
+                               Reducer.Context context) throws IOException, InterruptedException {
+            context.write(predobj, subjects);
+        }
+
+        private void outputOPS(PairOfStrings predobj,
+                               ArrayListWritable<Text> subjects,
+                               Reducer.Context context) throws IOException, InterruptedException {
+
+            PairOfStrings objpred = new PairOfStrings(predobj.getRightElement(), predobj.getLeftElement());
+
+            Collections.sort(subjects);
+
+            context.write(objpred, subjects);
+        }
+
+        private void outputSOP(PairOfStrings predobj,
+                               Text subject,
+                               Reducer.Context context) throws IOException, InterruptedException {
+            PairOfStrings subjobj = new PairOfStrings(subject.toString(), predobj.getRightElement());
+            context.write(subjobj, predobj.getLeftElement());
+        }
         // This reducer turns an iterable into an ArrayListWritable, sorts it
         // and outputs it
         public void reduce(
-                PairOfStrings key,
-                Iterable<Text> values,
+                PairOfStrings predobj,
+                Iterable<Text> subj,
                 Context context) throws IOException, InterruptedException
         {
-            ArrayListWritable<Text> postings = new ArrayListWritable<Text>();
-            
-            Iterator<Text> iter = values.iterator();
-            
+            ArrayListWritable<Text> subjects = new ArrayListWritable<Text>();
+            Iterator<Text> iter = subj.iterator();
             while(iter.hasNext()) {
-            	Text copy = new Text(iter.next());
-                postings.add(copy);
+                subjects.add(iter.next());
             }
-            
-            Collections.sort(postings);
-            
-            context.write(key, postings);
+            Collections.sort(subjects);
+
+            outputPOS(predobj, subjects, context);
+            outputOPS(predobj, subjects, context);
+
+            for (Text subject : subjects) {
+                outputSOP(predobj, subject, context);
+            }
+
+//            for (HashMap.Entry<String, Integer> entry : uris.entrySet()) {
+//                Text key = new Text(entry.getKey());
+//                Object value = entry.getValue();
+//                ArrayListWritable<Text> uriText = new ArrayListWritable<>();
+//                uriText.add(key);
+//
+//                context.write(new PairOfStrings(value.toString(), ""), uriText);
+//            }
         }
     }
 
